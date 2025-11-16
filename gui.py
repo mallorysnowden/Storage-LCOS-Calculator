@@ -8,7 +8,7 @@ import pandas as pd  # For DataFrame
 import os
 
 # Your API URL (replace with yours)
-API_URL = "https://storage-lcos-calculator-v2.onrender.com/calculate"
+API_URL = "https://lcos-gui.onrender.com/calculate"
 
 # Plot folder (local; for deploy, use public URL or base64)
 PLOT_FOLDER = "plots"  # Create this folder if needed
