@@ -2,18 +2,18 @@ import streamlit as st
 import requests
 import json
 import time
-from PIL import Image
+import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd  # For DataFrame
+import pandas as pd
+import matplotlib.colors as mcolors
+from matplotlib.colors import ListedColormap
+from matplotlib.path import Path
+from matplotlib.patches import PathPatch
+import matplotlib.ticker as ticker
 import os
 
-# Your API URL (replace with yours)
+# Your API URL (replace with backend)
 API_URL = "https://lcos-gui.onrender.com/calculate"
-
-# Plot folder (local; for deploy, use public URL or base64)
-PLOT_FOLDER = "plots"  # Create this folder if needed
-if not os.path.exists(PLOT_FOLDER):
-    os.makedirs(PLOT_FOLDER)
 
 st.title("Arctic Energy Storage LCOS Calculator")
 st.markdown("Enter parameters below to compute LCOS changes and generate plots.")
@@ -36,13 +36,11 @@ with st.form("lcos_inputs"):
             selected_Tamb = [float(t.strip()) for t in selected_Tamb_str.split(",")]
         except ValueError:
             st.error("Invalid temps—use numbers separated by commas.")
-            selected_Tamb = [-40, -10, 0, 20]  # Default fallback
+            selected_Tamb = [-40, -10, 0, 20]
 
-    # Submit button inside form
     submit = st.form_submit_button("Compute LCOS")
 
 if submit:
-    # Prepare payload
     inputs = {
         "Power": Power,
         "DD": DD,
@@ -56,7 +54,7 @@ if submit:
     with st.spinner("Computing... (may take 1-2 min)"):
         start_time = time.time()
         try:
-            response = requests.post(API_URL, json=inputs, timeout=300)  # 5 min timeout
+            response = requests.post(API_URL, json=inputs, timeout=300)
             end_time = time.time()
             
             st.subheader(f"Response Status: {response.status_code} ({end_time - start_time:.1f}s)")
@@ -72,31 +70,85 @@ if submit:
                 
                 # Display Summary Table (from console log or results)
                 st.subheader("LCOS Summary")
-                # Extract from log or results (adapt as needed)
-                log_preview = data['console_log'][-1000:]  # Last 1000 chars for summary
+                log_preview = data['console_log'][-1000:]
                 st.text_area("Console Log Preview (includes averages/ranges)", log_preview, height=200)
-
-                # Display Plot Files
+                
+                # Display Plot Files (List + Recreation)
                 st.subheader("Generated Plots")
                 plot_files = data['plot_files']
                 if plot_files:
-                    for name, path in plot_files.items():
-                        # Option 1: Local display (if PNGs downloaded to PLOT_FOLDER)
-                        if os.path.exists(os.path.join(PLOT_FOLDER, path)):
-                            st.image(Image.open(os.path.join(PLOT_FOLDER, path)), caption=name, use_column_width=True)
-                        else:
-                            st.write(f"**{name}**: Download from {path} and place in 'plots' folder to view.")
-                        # Option 2: If Render serves plots statically (add app.mount("/plots", StaticFiles(directory="plots")) to application.py)
-                        # st.image(f"https://your-render-url.onrender.com/{path}", caption=name)
+                    st.write("Plots recreated below from results data.")
                 else:
                     st.info("No plots generated—check logs.")
+                
+                # Recreate Plots from data['results']
+                results = data['results']
+                charges_values = results['charges_values']
+                DD_values = results['DD_values']
+                subprograms = results['subprograms']
+                subprogram_colors = results['subprogram_colors']
+                min_baseLCOS_indices = np.array(results['min_baseLCOS_indices'])
+                min_newLCOS_indices = np.array(results['min_newLCOS_indices'])
+                min_LCOSchange = np.array(results['min_LCOSchange'])
+                min_baseLCOS = np.array(results['min_baseLCOS'])
+                min_newLCOS = np.array(results['min_newLCOS'])
+                
+                # Plot 1: Side-by-side indices scatter
+                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
+                X, Y = np.meshgrid(charges_values, DD_values)
+                X_flat, Y_flat = X.ravel(), Y.ravel()
+                colors = ['white'] + [subprogram_colors[prog] for prog in subprograms]
+                custom_cmap = ListedColormap(colors)
+                scatter1 = ax1.scatter(X_flat, Y_flat, c=min_baseLCOS_indices.ravel(), cmap=custom_cmap, s=50, marker='o', edgecolors='white', linewidth=0.5)
+                ax1.set_xscale('log', base=10)
+                ax1.set_yscale('log', base=4)
+                ax1.set_xlabel('Charges per Year (CPY)')
+                ax1.set_title('Min LCOS Storage Technology in Mild Climates')
+                ax1.set_ylabel('Discharge Duration (hours)')
+                scatter2 = ax2.scatter(X_flat, Y_flat, c=min_newLCOS_indices.ravel(), cmap=custom_cmap, s=50, marker='o', edgecolors='white', linewidth=0.5)
+                ax2.set_xscale('log', base=10)
+                ax2.set_yscale('log', base=4)
+                ax2.set_xlabel('Charges per Year (CPY)')
+                ax2.set_title('Min LCOS Storage Technology in Arctic Climates')
+                cbar = fig.colorbar(scatter2, ax=[ax1, ax2], location='right')
+                cbar.set_ticks(np.arange(len(subprograms)))
+                cbar.set_ticklabels([prog.replace('calcs', '') for prog in subprograms])
+                fig.subplots_adjust(left=0.05, right=0.75, wspace=0.2)
+                st.pyplot(fig)
+                plt.close(fig)
+                
+                # Plot 2: Average LCOS change bar
+                avg_LCOSchange = np.zeros(len(subprograms))
+                counts = np.zeros(len(subprograms), dtype=int)
+                for k in range(len(subprograms)):
+                    mask = min_baseLCOS_indices == k
+                    valid_LCOSchange = min_LCOSchange[mask]
+                    valid_LCOSchange = valid_LCOSchange[~np.isnan(valid_LCOSchange)]
+                    counts[k] = len(valid_LCOSchange)
+                    avg_LCOSchange[k] = np.mean(valid_LCOSchange) if counts[k] > 0 else np.nan
+                color_map = {'BESS': 'red', 'H2': 'green', 'CAES': 'pink', 'PHS': 'blue', 'Flywheel': 'purple'}
+                colors = [color_map.get(sp.replace('calcs', ''), 'gray') for sp in subprograms]
+                fig, ax = plt.subplots(figsize=(6, 4.5))
+                bars = ax.bar(range(len(subprograms)), avg_LCOSchange, color=colors, edgecolor='black')
+                ax.set_xticks(range(len(subprograms)))
+                ax.set_xticklabels([sp.replace('calcs', '') for sp in subprograms], rotation=45, ha='right')
+                ax.set_ylabel('Average LCOS Change (%)')
+                ax.set_title(f'Average LCOS Change in the Arctic by Technology \nP = {Power:0.0f}MW, Power @ {Powercost:0.2f} USD/kWh')
+                for bar, value in zip(bars, avg_LCOSchange):
+                    if not np.isnan(value):
+                        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), f"{value:.1f}%", ha='center', va='bottom')
+                plt.tight_layout()
+                st.pyplot(fig)
+                plt.close(fig)
+                
+                # Add more recreations for other plots (e.g., marker scatter, LCOS change)—expand as needed
                 
                 # Download Results JSON
                 st.download_button("Download Full Results JSON", json.dumps(data, indent=2), file_name="lcos_results.json")
                 
             else:
                 st.error(f"API Error {response.status_code}")
-                st.code(response.text, language="json")  # Shows full error body
+                st.code(response.text, language="json")
                 
         except requests.exceptions.RequestException as e:
             st.error(f"Request failed: {e}")
@@ -114,4 +166,4 @@ with st.sidebar:
     - **Lifespan (years)**: Project duration.
     - **Temps**: List for Arctic/mild comparison.
     """)
-    st.info("Plots saved server-side; full grids in JSON download.")
+    st.info("Plots recreated from data; full grids in JSON download.")
