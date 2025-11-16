@@ -4,11 +4,11 @@ import json
 import time
 from PIL import Image
 import numpy as np
-import pandas as pd  # Added for DataFrame
+import pandas as pd  # For DataFrame
 import os
 
 # Your API URL (replace with yours)
-API_URL = "https://storage-lcos-calculator.onrender.com/calculate"
+API_URL = "https://storage-lcos-calculator-v2.onrender.com/calculate"
 
 # Plot folder (local; for deploy, use public URL or base64)
 PLOT_FOLDER = "plots"  # Create this folder if needed
@@ -25,12 +25,12 @@ with st.form("lcos_inputs"):
         st.subheader("System Parameters")
         Power = st.number_input("Power (MW)", value=100.0, min_value=1.0, step=10.0)
         DD = st.number_input("Discharge Duration (hours)", value=1.0, min_value=0.1, step=0.5)
-        charges_per_year = st.number_input("Charges per Year", value=372.76, min_value=1.0, step=50.0)  # Fixed types to float
+        charges_per_year = st.number_input("Charges per Year", value=372.76, min_value=1.0, step=50.0)
         project_lifespan = st.number_input("Project Lifespan (years)", value=50, min_value=1, step=10)
     with col2:
         st.subheader("Economic Parameters")
-        Powercost = st.number_input("Power Cost ($/kWh)", value=0.2, min_value=0.01, step=0.05, format="0.02f")
-        interest_rate = st.number_input("Interest Rate", value=0.08, min_value=0.01, step=0.01, format="0.02f")
+        Powercost = st.number_input("Power Cost ($/kWh)", value=0.2, min_value=0.01, step=0.05, format="%.2f")  # Fixed: %.2f for 2 decimals
+        interest_rate = st.number_input("Interest Rate", value=0.08, min_value=0.01, step=0.01, format="%.2f")  # Fixed: %.2f
         selected_Tamb_str = st.text_input("Ambient Temps (comma-separated, e.g., -40,-10,0,20)", value="-40,-10,0,20")
         try:
             selected_Tamb = [float(t.strip()) for t in selected_Tamb_str.split(",")]
@@ -59,9 +59,11 @@ if submit:
             response = requests.post(API_URL, json=inputs, timeout=300)  # 5 min timeout
             end_time = time.time()
             
+            st.subheader(f"Response Status: {response.status_code} ({end_time - start_time:.1f}s)")
+            
             if response.status_code == 200:
                 data = response.json()
-                st.success(f"Computation complete in {end_time - start_time:.1f}s!")
+                st.success("Success!")
                 
                 # Display Timings
                 st.subheader("Timings")
@@ -88,10 +90,12 @@ if submit:
                 st.download_button("Download Full Results JSON", json.dumps(data, indent=2), file_name="lcos_results.json")
                 
             else:
-                st.error(f"API Error {response.status_code}: {response.text}")
+                st.error(f"API Error {response.status_code}")
+                st.code(response.text, language="json")  # Shows full error body
                 
         except requests.exceptions.RequestException as e:
             st.error(f"Request failed: {e}")
+            st.code(str(e), language="text")
 
 # Sidebar for Help
 with st.sidebar:
