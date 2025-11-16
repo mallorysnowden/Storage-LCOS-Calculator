@@ -3,7 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-from scipy.optiminbze import curve_fit
+from scipy.optimize import curve_fit
 
 
 ## Main Program ##
@@ -270,6 +270,7 @@ print(f'New LCOS = ${results['newLCOS']:0.3f}/kWh') """
 
 
 # In[ ]:
+
 
 
 
