@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware  # Add this import
 from pydantic import BaseModel
 from typing import List, Dict, Any
 import uvicorn
@@ -62,6 +63,15 @@ def execute_master_script(inputs: dict) -> dict:
     }
 
 app = FastAPI(title="Arctic LCOS API")
+
+# Add CORS middleware (allows POST from Streamlit)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://streamlit.io", "https://*.streamlit.app", "*"],  # Add your Streamlit domain; "*" for testing
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows POST
+    allow_headers=["*"],
+)
 
 @app.post("/calculate", response_model=StorageOutput)
 async def calculate_storage(inputs: StorageInput):
