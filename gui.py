@@ -12,8 +12,7 @@ API_URL = "https://storage-lcos-calculator-v2.onrender.com/calculate"
 
 # Plot folder (local; for deploy, use public URL or base64)
 PLOT_FOLDER = "plots"  # Create this folder if needed
-if not os.path.exists(PLOT_FOLDER):
-    os.makedirs(PLOT_FOLDER, exist_ok=True)  # Fixed: exist_ok=True ignores if exists
+os.makedirs(PLOT_FOLDER, exist_ok=True)  # Fixed: Always safe, no race condition
 
 st.title("Arctic Energy Storage LCOS Calculator")
 st.markdown("Enter parameters below to compute LCOS changes and generate plots.")
