@@ -12,7 +12,8 @@ API_URL = "https://storage-lcos-calculator-v2.onrender.com/calculate"
 
 # Plot folder (local; for deploy, use public URL or base64)
 PLOT_FOLDER = "plots"  # Create this folder if needed
-os.makedirs(PLOT_FOLDER, exist_ok=True)  # Fixed: Always safe, no race condition
+if not os.path.exists(PLOT_FOLDER):
+    os.makedirs(PLOT_FOLDER)
 
 st.title("Arctic Energy Storage LCOS Calculator")
 st.markdown("Enter parameters below to compute LCOS changes and generate plots.")
@@ -74,14 +75,19 @@ if submit:
                 # Extract from log or results (adapt as needed)
                 log_preview = data['console_log'][-1000:]  # Last 1000 chars for summary
                 st.text_area("Console Log Preview (includes averages/ranges)", log_preview, height=200)
-                
+
                 # Display Plot Files
                 st.subheader("Generated Plots")
                 plot_files = data['plot_files']
                 if plot_files:
                     for name, path in plot_files.items():
-                        # For local: if path in os.listdir(PLOT_FOLDER): st.image(Image.open(os.path.join(PLOT_FOLDER, path)))
-                        st.write(f"**{name}**: [Download PNG](https://your-render-url.com/{path})")  # Update with public path if served
+                        # Option 1: Local display (if PNGs downloaded to PLOT_FOLDER)
+                        if os.path.exists(os.path.join(PLOT_FOLDER, path)):
+                            st.image(Image.open(os.path.join(PLOT_FOLDER, path)), caption=name, use_column_width=True)
+                        else:
+                            st.write(f"**{name}**: Download from {path} and place in 'plots' folder to view.")
+                        # Option 2: If Render serves plots statically (add app.mount("/plots", StaticFiles(directory="plots")) to application.py)
+                        # st.image(f"https://your-render-url.onrender.com/{path}", caption=name)
                 else:
                     st.info("No plots generated—check logs.")
                 
