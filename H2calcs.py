@@ -1,33 +1,9 @@
-#!/usr/bin/env python
-# coding: utf-8
 
-# In[36]:
-
-
-#!/usr/bin/env python
-# coding: utf-8
-
-import nbformat
-from nbconvert import PythonExporter
 import os
 import matplotlib.pyplot as plt
 import numpy as np
 import math
 import CoolProp.CoolProp as CP
-
-# Convert notebook to Python script
-notebook_path = 'H2calcs.ipynb'
-output_path = 'H2calcs.py'
-
-with open(notebook_path, 'r', encoding='utf-8') as f:
-    notebook = nbformat.read(f, as_version=4)
-
-exporter = PythonExporter()
-python_code, _ = exporter.from_notebook_node(notebook)
-with open(output_path, 'w', encoding='utf-8') as f:
-    f.write(python_code)
-
-print(f"Exported {notebook_path} to {output_path}")
 
 def run(inputs: dict) -> dict:
     # Extract inputs
@@ -546,6 +522,7 @@ print(f'New LCOS = ${results['newLCOS']:0.3f}/kWh') """
 
 
 # In[ ]:
+
 
 
 
