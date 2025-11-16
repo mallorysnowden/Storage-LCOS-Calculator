@@ -1,34 +1,10 @@
-#!/usr/bin/env python
-# coding: utf-8
 
-# In[16]:
-
-
-#!/usr/bin/env python
-# coding: utf-8
-
-import nbformat
-from nbconvert import PythonExporter
 import os
 import matplotlib.pyplot as plt
 import numpy as np
 import math
 from scipy.optimize import curve_fit, brentq
 
-
-# Convert notebook to Python script
-notebook_path = 'PHScalcs.ipynb'
-output_path = 'PHScalcs.py'
-
-with open(notebook_path, 'r', encoding='utf-8') as f:
-    notebook = nbformat.read(f, as_version=4)
-
-exporter = PythonExporter()
-python_code, _ = exporter.from_notebook_node(notebook)
-with open(output_path, 'w', encoding='utf-8') as f:
-    f.write(python_code)
-
-print(f"Exported {notebook_path} to {output_path}")
 
 def run(inputs: dict) -> dict:
     # Extract inputs
@@ -398,6 +374,7 @@ print(f'New LCOS = ${results['newLCOS']:0.4f}/kWh') """
 
 
 # In[ ]:
+
 
 
 
