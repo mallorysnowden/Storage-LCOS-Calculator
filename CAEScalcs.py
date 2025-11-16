@@ -1,11 +1,4 @@
-#!/usr/bin/env python
-# coding: utf-8
 
-# In[94]:
-
-
-import nbformat
-from nbconvert import PythonExporter
 import os
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,20 +6,6 @@ import math
 import CoolProp.CoolProp as CP
 from tabulate import tabulate  # Added for table formatting
 from scipy.optimize import curve_fit
-
-# Convert notebook to Python script
-notebook_path = 'CAEScalcs.ipynb'
-output_path = 'CAEScalcs.py'
-
-with open(notebook_path, 'r', encoding='utf-8') as f:
-    notebook = nbformat.read(f, as_version=4)
-
-exporter = PythonExporter()
-python_code, _ = exporter.from_notebook_node(notebook)
-with open(output_path, 'w', encoding='utf-8') as f:
-    f.write(python_code)
-
-print(f"Exported {notebook_path} to {output_path}")
 
 def run(inputs: dict) -> dict:
     
@@ -464,6 +443,7 @@ print(f'New LCOS = ${results['newLCOS']:0.5f}/kWh') """
 
 
 # In[ ]:
+
 
 
 
