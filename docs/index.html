@@ -26,6 +26,10 @@
   input[type=range] { width:100%; accent-color: var(--accent); }
   .note { font-size:11px; color:var(--muted); margin-top:2px; }
   main { padding:14px 18px 40px; }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin:0 4px 14px; }
+  .tab { padding:9px 16px; font-size:13px; font-weight:600; color:var(--muted);
+         cursor:pointer; border:none; background:none; border-bottom:2px solid transparent; }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
   .intro { font-size:13px; color:#3a4453; font-style:italic; max-width:1050px;
            margin:6px 4px 14px; line-height:1.5; }
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
@@ -35,6 +39,25 @@
              background:#fff; border:1px solid var(--line); border-radius:6px;
              padding:4px 8px; font-variant-numeric:tabular-nums; }
   #loading { padding:40px; color:var(--muted); font-size:14px; }
+  .caseinputs { display:flex; gap:20px; align-items:flex-end; flex-wrap:wrap;
+                background:#fff; border:1px solid var(--line); border-radius:10px;
+                padding:14px 16px; margin:0 4px 14px; }
+  .caseinputs .fld { display:flex; flex-direction:column; font-size:13px; font-weight:550; }
+  .caseinputs input { margin-top:5px; width:150px; padding:6px 8px; font-size:14px;
+                      border:1px solid var(--line); border-radius:6px; }
+  .calcbtn { padding:9px 20px; font-size:14px; font-weight:650; color:#fff;
+             background:var(--accent); border:none; border-radius:7px; cursor:pointer;
+             align-self:flex-end; height:37px; }
+  .calcbtn:disabled { background:#9db8cf; cursor:default; }
+  #life_content.stale { opacity:.45; transition:opacity .1s; }
+  .stalemsg { font-size:12px; color:#b06a00; font-weight:600; margin:0 4px 12px; display:none; }
+  table.lc { width:100%; border-collapse:collapse; font-size:13px; margin:0 4px 8px;
+             font-variant-numeric:tabular-nums; }
+  table.lc th, table.lc td { padding:6px 10px; text-align:right; border-bottom:1px solid var(--line); }
+  table.lc th { color:var(--muted); font-weight:600; }
+  table.lc td:first-child, table.lc th:first-child { text-align:left; }
+  table.lc .rng { color:var(--muted); font-size:11px; }
+  .lcnote { font-size:11px; color:var(--muted); margin:2px 4px 16px; }
 </style>
 </head>
 <body>
@@ -67,18 +90,49 @@
   </aside>
 
   <main>
-    <div class="intro">Technoeconomic models were used to estimate the Levelized Cost of Storage (LCOS)
-      for five storage technologies in both Arctic and temperate settings. The competitive landscape below
-      maps both climates across discharge durations and cycle frequencies — each point shows the lowest-cost
-      technology for that application. Full context for this tool is available in the accompanying paper,
-      <a href="https://github.com/mallorysnowden/Storage-LCOS-Calculator/blob/main/A%20Technoeconomic%20Assessment%20of%20Energy%20Storage%20Potential%20in%20Arctic%20Grid%20Systems_FINAL.pdf" target="_blank" rel="noopener">A Technoeconomic Assessment of Energy Storage Potential in Arctic Grid Systems</a>.</div>
-    <div id="loading">Loading grid…</div>
-    <div class="grid" id="plots" style="display:none">
-      <div class="card"><div id="temperate"></div></div>
-      <div class="card"><div id="arctic"></div></div>
-      <div class="card full" style="max-width:640px"><div id="gradient"></div></div>
-      <div class="card full"><div id="avg"></div></div>
+    <div class="tabs">
+      <button class="tab active" id="tab_land" onclick="showTab('land')">Competitive Landscape</button>
+      <button class="tab" id="tab_life" onclick="showTab('life')">Lifetime Cost</button>
     </div>
+
+    <!-- Competitive Landscape -->
+    <section id="panel_land">
+      <div class="intro">Technoeconomic models were used to estimate the Levelized Cost of Storage (LCOS)
+        for five storage technologies in both Arctic and temperate settings. The competitive landscape below
+        maps both climates across discharge durations and cycle frequencies — each point shows the lowest-cost
+        technology for that application. Full context for this tool is available in the accompanying paper,
+        <a href="https://github.com/mallorysnowden/Storage-LCOS-Calculator/blob/main/A%20Technoeconomic%20Assessment%20of%20Energy%20Storage%20Potential%20in%20Arctic%20Grid%20Systems_FINAL.pdf" target="_blank" rel="noopener">A Technoeconomic Assessment of Energy Storage Potential in Arctic Grid Systems</a>.</div>
+      <div id="loading">Loading grid…</div>
+      <div class="grid" id="plots" style="display:none">
+        <div class="card"><div id="temperate"></div></div>
+        <div class="card"><div id="arctic"></div></div>
+        <div class="card full" style="max-width:640px"><div id="gradient"></div></div>
+        <div class="card full"><div id="avg"></div></div>
+      </div>
+    </section>
+
+    <!-- Lifetime Cost -->
+    <section id="panel_life" style="display:none">
+      <div class="intro">For a single application — defined by its discharge duration and cycle frequency —
+        the cost factors driving each technology's Arctic LCOS are broken down and compared against the
+        temperate baseline. Whiskers show the Arctic LCOS uncertainty band (best- to worst-case Arctic
+        cost parameters). Combined with the Project parameters in the sidebar; press <b>Calculate</b>.</div>
+      <div class="caseinputs">
+        <label class="fld">Discharge duration (hrs)
+          <input type="number" id="dd" value="4" min="0.0625" max="1024" step="0.5"></label>
+        <label class="fld">Charges per year
+          <input type="number" id="cpy" value="100" min="1" max="10000" step="10"></label>
+        <button class="calcbtn" id="calc" onclick="runLife()">Calculate</button>
+      </div>
+      <div class="stalemsg" id="stalemsg">Inputs changed — press Calculate to update.</div>
+      <div id="life_loading" style="padding:30px;color:var(--muted);font-size:14px;display:none">Loading Lifetime Cost data…</div>
+      <div id="life_hint" style="padding:30px;color:var(--muted);font-size:14px">Press <b>Calculate</b> to compute lifetime costs for the current inputs.</div>
+      <div id="life_content" style="display:none">
+        <div id="cost_table"></div>
+        <div class="card full" style="margin-bottom:12px"><div id="contrib"></div></div>
+        <div class="card full"><div id="breakdown"></div></div>
+      </div>
+    </section>
   </main>
 </div>
 <div class="latency" id="latency">—</div>
@@ -87,212 +141,339 @@
 "use strict";
 const DD_TICKS = [0.0625,0.25,1,4,16,64,256,1024];
 const CPY_TICKS = [1,10,100,1000,10000];
-let META, DATA, N, OFF, STR;  // grid state
+const SENTINEL = 1e5;
+const FACTOR_COLORS = {
+  "Arctic Construction Markup":"#4e79a7","Heater + Insulation Upgrades":"#f28e2b",
+  "Chiller Winterization":"#59a14f","Dry Cooler Winterization":"#76b7b2",
+  "Fluid Components":"#edc948","FEED / EPC":"#b07aa1","OPEX":"#e15759",
+  "Climate-driven Capacity Change":"#9c755f"};
+const BREAKDOWN_COLORS = {CAPEX:"#4e79a7", OPEX:"#e15759", Replacement:"#9c755f"};
 
-// ---- load grid (once) ----
+let META, N, S, TLEN, LOGP, LOGC, LOGDD, LOGCPY;
+const T = {};
+let lifeLoaded = false, lifeLoading = false, lifeCalc = false;
+
+async function loadGz(url) {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(url + " " + resp.status);
+  const stream = resp.body.pipeThrough(new DecompressionStream("gzip"));
+  const buf = await new Response(stream).arrayBuffer();
+  return new Float32Array(buf);
+}
+function split(flat, names) {
+  names.forEach((nm,i) => { T[nm] = flat.subarray(i*TLEN, (i+1)*TLEN); });
+}
+
 async function load() {
-  const [meta, buf] = await Promise.all([
+  const [meta, flat] = await Promise.all([
     fetch("meta.json").then(r => r.json()),
-    fetch("grid.f32").then(r => r.arrayBuffer()),
+    loadGz("landscape.f32.gz"),
   ]);
   META = meta;
-  DATA = new Float32Array(buf);
   const [nP,nC,nR,nL,nT,nDD,nCPY] = meta.shape;
   N = {nP,nC,nR,nL,nT,nDD,nCPY};
-  // C-order strides within ONE tensor
-  const sCPY = 1, sDD = nCPY, sT = nDD*nCPY, sL = nT*nDD*nCPY,
-        sR = nL*sL, sC = nR*sR, sP = nC*sC;
-  STR = {sCPY,sDD,sT,sL,sR,sC,sP};
-  const per = nP*sP;                 // elements per tensor
-  OFF = { new:0, base:per, change:2*per };
-  buildPlots();
+  const sCPY=1, sDD=nCPY, sT=nDD*nCPY, sL=nT*nDD*nCPY, sR=nL*sL, sC=nR*sR, sP=nC*sC;
+  S = {sCPY,sDD,sT,sL,sR,sC,sP};
+  TLEN = nP*sP;
+  LOGP = meta.power_axis.map(Math.log);
+  LOGC = meta.cost_axis.map(Math.log);
+  LOGDD = meta.DD_values.map(Math.log);
+  LOGCPY = meta.CPY_values.map(Math.log);
+  split(flat, meta.landscape_tensors);
   document.getElementById("loading").style.display = "none";
   document.getElementById("plots").style.display = "grid";
   update();
 }
 
-// bracket a value on an axis -> {i0,i1,w}, clamped to the axis range
 function bracket(v, axis) {
   const n = axis.length;
   if (v <= axis[0]) return {i0:0, i1:Math.min(1,n-1), w:0};
   if (v >= axis[n-1]) return {i0:n-2, i1:n-1, w:1};
   let i = 0; while (i < n-2 && v > axis[i+1]) i++;
-  const w = (v - axis[i]) / (axis[i+1] - axis[i]);
-  return {i0:i, i1:i+1, w};
+  return {i0:i, i1:i+1, w:(v-axis[i])/(axis[i+1]-axis[i])};
 }
 
-// interpolate the three per-(tech,DD,CPY) tensors at (power,cost,rate,life)
-function interp(power, cost, rate, life) {
-  const {nT,nDD,nCPY} = N, {sT,sDD,sCPY,sL,sR,sC,sP} = STR;
-  const bP = bracket(power, META.power_axis);
-  const bC = bracket(cost,  META.cost_axis);
-  const bR = bracket(rate,  META.rate_axis);
-  const bL = bracket(life,  META.life_axis);
-  const cells = nT*nDD*nCPY;
-  const outNew = new Float64Array(cells);
-  const outBase = new Float64Array(cells);
-  const outChg = new Float64Array(cells);
-  const pAx=[[bP.i0,1-bP.w],[bP.i1,bP.w]], cAx=[[bC.i0,1-bC.w],[bC.i1,bC.w]],
-        rAx=[[bR.i0,1-bR.w],[bR.i1,bR.w]], lAx=[[bL.i0,1-bL.w],[bL.i1,bL.w]];
-  for (const [ip,wp] of pAx) for (const [ic,wc] of cAx)
-  for (const [ir,wr] of rAx) for (const [il,wl] of lAx) {
-    const w = wp*wc*wr*wl;
-    if (w < 1e-12) continue;                     // skip zero-weight (avoids 0*NaN)
-    const cornerBase = ip*sP + ic*sC + ir*sR + il*sL;
-    for (let e = 0; e < cells; e++) {
-      // e encodes (t,dd,cpy) in C-order = t*sT + dd*sDD + cpy (since sCPY=1)
-      const idx = cornerBase + e;
-      outNew[e]  += w * DATA[OFF.new  + idx];
-      outBase[e] += w * DATA[OFF.base + idx];
-      outChg[e]  += w * DATA[OFF.change + idx];
-    }
+// 4-D interp over (power,cost,rate,life) -> {name: Float64Array(nT*nDD*nCPY)}.
+// Power/cost in log space; rate/life linear.
+function interp4D(names, power, cost, rate, life) {
+  const cells = N.nT*N.nDD*N.nCPY;
+  const out = {}; names.forEach(nm => out[nm] = new Float64Array(cells));
+  const bP=bracket(Math.log(power),LOGP), bC=bracket(Math.log(cost),LOGC),
+        bR=bracket(rate,META.rate_axis), bL=bracket(life,META.life_axis);
+  const P=[[bP.i0,1-bP.w],[bP.i1,bP.w]], C=[[bC.i0,1-bC.w],[bC.i1,bC.w]],
+        R=[[bR.i0,1-bR.w],[bR.i1,bR.w]], Lx=[[bL.i0,1-bL.w],[bL.i1,bL.w]];
+  for (const [ip,wp] of P) for (const [ic,wc] of C) for (const [ir,wr] of R) for (const [il,wl] of Lx) {
+    const w=wp*wc*wr*wl; if (w<1e-12) continue;
+    const base = ip*S.sP+ic*S.sC+ir*S.sR+il*S.sL;
+    for (const nm of names) { const A=T[nm], o=out[nm]; for (let e=0;e<cells;e++) o[e]+=w*A[base+e]; }
   }
-  return {outNew, outBase, outChg};
+  return out;
 }
 
-// collapse to per-cell argmin-over-tech landscape
+// 6-D interp -> {name: Float64Array(nT)} at a single (dd,cpy). Geometric axes in log space.
+function interp6D(names, power, cost, rate, life, dd, cpy) {
+  const out = {}; names.forEach(nm => out[nm] = new Float64Array(N.nT));
+  const b=[bracket(Math.log(power),LOGP),bracket(Math.log(cost),LOGC),bracket(rate,META.rate_axis),
+           bracket(life,META.life_axis),bracket(Math.log(dd),LOGDD),bracket(Math.log(cpy),LOGCPY)];
+  const dim=b.map(x=>[[x.i0,1-x.w],[x.i1,x.w]]);
+  const str=[S.sP,S.sC,S.sR,S.sL,S.sDD,S.sCPY];
+  for (const [i0,w0] of dim[0]) for (const [i1,w1] of dim[1]) for (const [i2,w2] of dim[2])
+  for (const [i3,w3] of dim[3]) for (const [i4,w4] of dim[4]) for (const [i5,w5] of dim[5]) {
+    const w=w0*w1*w2*w3*w4*w5; if (w<1e-12) continue;
+    const base=i0*str[0]+i1*str[1]+i2*str[2]+i3*str[3]+i4*str[4]+i5*str[5];
+    for (const nm of names) { const A=T[nm], o=out[nm]; for (let t=0;t<N.nT;t++) o[t]+=w*A[base+t*S.sT]; }
+  }
+  return out;
+}
+
+// ---- landscape (direct LCOS) ----
 function landscape(power, cost, rate, life) {
-  const {nT,nDD,nCPY} = N, {sT,sDD} = STR;
-  const {outNew, outBase, outChg} = interp(power, cost, rate, life);
-  const baseIdx = [], arcticIdx = [], minArctic = [], minBase = [],
-        baseChange = [], arcticChange = [];
+  const {nT,nDD,nCPY}=N;
+  const R = interp4D(["base_lcos","new_lcos"], power, cost, rate, life);
+  const baseIdx=[],arcticIdx=[],minArctic=[],minBase=[],baseChange=[],arcticChange=[];
   for (let dd=0; dd<nDD; dd++) for (let cpy=0; cpy<nCPY; cpy++) {
-    let bBest=-1,bMin=Infinity, aBest=-1,aMin=Infinity;
-    for (let t=0; t<nT; t++) {
-      const e = t*sT + dd*sDD + cpy;
-      const bv = outBase[e], av = outNew[e];
-      if (!Number.isNaN(bv) && bv < bMin) { bMin=bv; bBest=t; }
-      if (!Number.isNaN(av) && av < aMin) { aMin=av; aBest=t; }
+    let bBest=-1,bMin=Infinity,aBest=-1,aMin=Infinity;
+    for (let t=0;t<nT;t++) {
+      const e=t*nDD*nCPY+dd*nCPY+cpy;
+      const bl=R.base_lcos[e], al=R.new_lcos[e];
+      if (Number.isFinite(bl) && bl<SENTINEL && bl<bMin){bMin=bl;bBest=t;}
+      if (Number.isFinite(al) && al<SENTINEL && al<aMin){aMin=al;aBest=t;}
     }
-    const cell = dd*nCPY + cpy;
-    baseIdx[cell]  = bBest;
-    arcticIdx[cell]= aBest;
-    minBase[cell]  = bBest<0 ? NaN : bMin;
-    minArctic[cell]= aBest<0 ? NaN : aMin;
-    baseChange[cell]  = bBest<0 ? NaN : outChg[bBest*sT + dd*sDD + cpy];
-    arcticChange[cell]= aBest<0 ? NaN : outChg[aBest*sT + dd*sDD + cpy];
+    const cell=dd*nCPY+cpy;
+    baseIdx[cell]=bBest; arcticIdx[cell]=aBest;
+    minBase[cell]=bBest<0?NaN:bMin; minArctic[cell]=aBest<0?NaN:aMin;
+    const chg=(t)=>{const e=t*nDD*nCPY+dd*nCPY+cpy; const b=R.base_lcos[e];
+      return (R.new_lcos[e]-b)/b*100;};
+    baseChange[cell]=bBest<0?NaN:chg(bBest);
+    arcticChange[cell]=aBest<0?NaN:chg(aBest);
   }
-  return {baseIdx, arcticIdx, minArctic, minBase, baseChange, arcticChange};
+  return {baseIdx,arcticIdx,minArctic,minBase,baseChange,arcticChange};
 }
 
-// ---- plotting ----
 const DOT_LAYOUT = (title) => ({
-  title:{text:title, font:{size:14}}, height:430,
-  margin:{t:42,b:44,l:56,r:12},
+  title:{text:title, font:{size:14}}, height:430, margin:{t:42,b:44,l:56,r:12},
   xaxis:{type:"log", title:"Charges per Year", tickvals:CPY_TICKS, range:[-0.1,4.1]},
-  yaxis:{type:"log", title:"Discharge Duration (h)", tickvals:DD_TICKS,
-         range:[Math.log10(0.05), Math.log10(1300)]},
-  showlegend:true, legend:{title:{text:"Min-LCOS tech"}},
-  paper_bgcolor:"#fff", plot_bgcolor:"#fff",
-});
+  yaxis:{type:"log", title:"Discharge Duration (h)", tickvals:DD_TICKS, range:[Math.log10(0.05),Math.log10(1300)]},
+  showlegend:true, legend:{title:{text:"Min-LCOS tech"}}, paper_bgcolor:"#fff", plot_bgcolor:"#fff"});
 const CONFIG = {displayModeBar:false, responsive:true};
 
 function techTraces(L, which) {
-  const {nDD,nCPY} = N, DD=META.DD_values, CPY=META.CPY_values;
-  const idx  = which === "arctic" ? L.arcticIdx : L.baseIdx;
-  const lcos = which === "arctic" ? L.minArctic : L.minBase;
-  const label = which === "arctic" ? "Arctic" : "Temperate";
-  const tail = `${label} LCOS: <b>$%{customdata:.3f}/kWh</b>`;
-  return META.techs.map((tech,k) => {
-    const x=[], y=[], cd=[];
-    for (let dd=0; dd<nDD; dd++) for (let cpy=0; cpy<nCPY; cpy++) {
-      const cell = dd*nCPY+cpy;
-      if (idx[cell] === k) {
-        x.push(CPY[cpy]); y.push(DD[dd]);
-        cd.push(lcos[cell]);
-      }
-    }
-    return {x, y, customdata:cd, mode:"markers", type:"scatter", name:tech,
-      marker:{color:META.colors[k], size:10, line:{color:"#fff", width:1}},
-      hovertemplate:`<b>${tech}</b> — lowest LCOS here<br>`+
-        `Discharge: %{y:.3g} h · %{x:.3g} charges/yr<br>${tail}<extra></extra>`};
+  const {nDD,nCPY}=N, DD=META.DD_values, CPY=META.CPY_values;
+  const idx=which==="arctic"?L.arcticIdx:L.baseIdx, lcos=which==="arctic"?L.minArctic:L.minBase;
+  const label=which==="arctic"?"Arctic":"Temperate";
+  return META.techs.map((tech,k)=>{
+    const x=[],y=[],cd=[];
+    for (let dd=0;dd<nDD;dd++) for (let cpy=0;cpy<nCPY;cpy++){const cell=dd*nCPY+cpy;
+      if (idx[cell]===k){x.push(CPY[cpy]);y.push(DD[dd]);cd.push(lcos[cell]);}}
+    return {x,y,customdata:cd,mode:"markers",type:"scatter",name:tech,
+      marker:{color:META.colors[k],size:10,line:{color:"#fff",width:1}},
+      hovertemplate:`<b>${tech}</b> — lowest LCOS here<br>Discharge: %{y:.3g} h · %{x:.3g} charges/yr<br>${label} LCOS: <b>$%{customdata:.3f}/kWh</b><extra></extra>`};
   });
 }
 function gradientTrace(L) {
-  const {nDD,nCPY} = N, DD=META.DD_values, CPY=META.CPY_values;
+  const {nDD,nCPY}=N, DD=META.DD_values, CPY=META.CPY_values;
   const x=[],y=[],c=[],txt=[];
-  for (let dd=0; dd<nDD; dd++) for (let cpy=0; cpy<nCPY; cpy++) {
-    const v = L.minArctic[dd*nCPY+cpy];
-    if (Number.isNaN(v)) continue;
-    x.push(CPY[cpy]); y.push(DD[dd]); c.push(Math.log10(v));
-    const ti = L.arcticIdx[dd*nCPY+cpy]; txt.push(ti>=0 ? META.techs[ti] : "");
-  }
-  return [{x,y, mode:"markers", type:"scatter", customdata:txt,
-    marker:{color:c, colorscale:"Plasma", size:10, line:{color:"#fff",width:.8},
-      colorbar:{title:{text:"LCOS<br>(USD/kWh)", side:"right"},
-        tickvals:[-2,-1,0,1], ticktext:["$0.01","$0.10","$1","$10"]}},
+  for (let dd=0;dd<nDD;dd++) for (let cpy=0;cpy<nCPY;cpy++){const v=L.minArctic[dd*nCPY+cpy];
+    if (Number.isNaN(v)) continue; x.push(CPY[cpy]);y.push(DD[dd]);c.push(Math.log10(v));
+    const ti=L.arcticIdx[dd*nCPY+cpy]; txt.push(ti>=0?META.techs[ti]:"");}
+  return [{x,y,mode:"markers",type:"scatter",customdata:txt,
+    marker:{color:c,colorscale:"Plasma",size:10,line:{color:"#fff",width:.8},
+      colorbar:{title:{text:"LCOS<br>(USD/kWh)",side:"right"},tickvals:[-2,-1,0,1],ticktext:["$0.01","$0.10","$1","$10"]}},
     hovertemplate:"<b>%{customdata}</b><br>Discharge: %{y:.3g} h<br>Charges/yr: %{x:.3g}<extra></extra>"}];
 }
 function avgTraces(L) {
-  const {nDD,nCPY} = N;
-  const sum = new Array(N.nT).fill(0), cnt = new Array(N.nT).fill(0);
-  for (let cell=0; cell<nDD*nCPY; cell++) {
-    const k = L.baseIdx[cell], ch = L.baseChange[cell];
-    if (k>=0 && !Number.isNaN(ch)) { sum[k]+=ch; cnt[k]++; }
-  }
-  const vals = sum.map((s,k) => cnt[k] ? s/cnt[k] : 0);
-  return [{x:META.techs, y:vals, type:"bar",
-    marker:{color:META.colors, line:{color:"#000", width:1}},
-    text: vals.map(v => v.toFixed(1)+"%"), textposition:"outside",
+  const {nDD,nCPY}=N; const sum=new Array(N.nT).fill(0), cnt=new Array(N.nT).fill(0);
+  for (let cell=0;cell<nDD*nCPY;cell++){const k=L.baseIdx[cell],ch=L.baseChange[cell];
+    if (k>=0 && !Number.isNaN(ch)){sum[k]+=ch;cnt[k]++;}}
+  const vals=sum.map((s,k)=>cnt[k]?s/cnt[k]:0);
+  return [{x:META.techs,y:vals,type:"bar",marker:{color:META.colors,line:{color:"#000",width:1}},
+    text:vals.map(v=>v.toFixed(1)+"%"),textposition:"outside",
     hovertemplate:"Where <b>%{x}</b> is competitive, Arctic LCOS changes ~%{y:.1f}%<extra></extra>"}];
 }
 
-let built = false;
-function buildPlots() { built = false; }
-
+let built=false;
+const val=id=>document.getElementById(id).value;
 function currentInputs() {
-  const power = Math.pow(10, +document.getElementById("power").value);
-  const cost  = Math.pow(10, +document.getElementById("cost").value);
-  const rate  = (+document.getElementById("rate").value) / 100;
-  const life  = +document.getElementById("life").value;
-  return {power, cost, rate, life};
+  return {power:Math.pow(10,+val("power")), cost:Math.pow(10,+val("cost")),
+          rate:(+val("rate"))/100, life:+val("life")};
 }
 function updateCaptions({power,cost,rate,life}) {
-  document.getElementById("v_power").textContent =
-    (power>=10 ? Math.round(power) : power.toFixed(1)) + " MW";
-  document.getElementById("v_cost").textContent = "$" + cost.toFixed(3) + "/kWh";
-  document.getElementById("v_rate").textContent = Math.round(rate*100) + "%";
-  document.getElementById("v_life").textContent = life + " yr";
+  document.getElementById("v_power").textContent=(power>=10?Math.round(power):power.toFixed(1))+" MW";
+  document.getElementById("v_cost").textContent="$"+cost.toFixed(3)+"/kWh";
+  document.getElementById("v_rate").textContent=Math.round(rate*100)+"%";
+  document.getElementById("v_life").textContent=life+" yr";
 }
 
 function update() {
-  const t0 = performance.now();
-  const inp = currentInputs();
-  updateCaptions(inp);
-  const L = landscape(inp.power, inp.cost, inp.rate, inp.life);
-  const tempT = techTraces(L, "base"), arcT = techTraces(L, "arctic");
-  const gradT = gradientTrace(L), avgT = avgTraces(L);
+  const t0=performance.now();
+  const inp=currentInputs(); updateCaptions(inp);
+  const L=landscape(inp.power,inp.cost,inp.rate,inp.life);
+  const tempT=techTraces(L,"base"),arcT=techTraces(L,"arctic"),gradT=gradientTrace(L),avgT=avgTraces(L);
   if (!built) {
-    Plotly.newPlot("temperate", tempT, DOT_LAYOUT("Min-LCOS Technology — Temperate"), CONFIG);
-    Plotly.newPlot("arctic", arcT, DOT_LAYOUT("Min-LCOS Technology — Arctic"), CONFIG);
-    Plotly.newPlot("gradient", gradT, {...DOT_LAYOUT("Minimum Arctic LCOS (USD/kWh)"), showlegend:false}, CONFIG);
-    Plotly.newPlot("avg", avgT, {title:{text:"Average Arctic LCOS Change by Technology",font:{size:14}},
-      height:340, margin:{t:42,b:30,l:56,r:12}, yaxis:{title:"Avg LCOS Change (%)", zeroline:true},
-      paper_bgcolor:"#fff", plot_bgcolor:"#fff"}, CONFIG);
-    built = true;
+    Plotly.newPlot("temperate",tempT,DOT_LAYOUT("Min-LCOS Technology — Temperate"),CONFIG);
+    Plotly.newPlot("arctic",arcT,DOT_LAYOUT("Min-LCOS Technology — Arctic"),CONFIG);
+    Plotly.newPlot("gradient",gradT,{...DOT_LAYOUT("Minimum Arctic LCOS (USD/kWh)"),showlegend:false},CONFIG);
+    Plotly.newPlot("avg",avgT,{title:{text:"Average Arctic LCOS Change by Technology",font:{size:14}},
+      height:340,margin:{t:42,b:30,l:56,r:12},yaxis:{title:"Avg LCOS Change (%)",zeroline:true},
+      paper_bgcolor:"#fff",plot_bgcolor:"#fff"},CONFIG);
+    built=true;
   } else {
-    Plotly.react("temperate", tempT, document.getElementById("temperate").layout, CONFIG);
-    Plotly.react("arctic", arcT, document.getElementById("arctic").layout, CONFIG);
-    Plotly.react("gradient", gradT, document.getElementById("gradient").layout, CONFIG);
-    Plotly.react("avg", avgT, document.getElementById("avg").layout, CONFIG);
+    Plotly.react("temperate",tempT,document.getElementById("temperate").layout,CONFIG);
+    Plotly.react("arctic",arcT,document.getElementById("arctic").layout,CONFIG);
+    Plotly.react("gradient",gradT,document.getElementById("gradient").layout,CONFIG);
+    Plotly.react("avg",avgT,document.getElementById("avg").layout,CONFIG);
   }
-  const ms = performance.now() - t0;
-  document.getElementById("latency").textContent = `update: ${ms.toFixed(1)} ms (client-side)`;
+  document.getElementById("latency").textContent=`landscape: ${(performance.now()-t0).toFixed(1)} ms (client-side)`;
 }
 
-// ---- real-time wiring: update on every slider movement, coalesced per frame ----
-let queued = false;
+// ---- Lifetime Cost tab (static + uncertainty band) ----
+async function ensureLife() {
+  if (lifeLoaded) return true;
+  if (lifeLoading) return false;
+  lifeLoading = true;
+  document.getElementById("life_loading").style.display="block";
+  try {
+    const flat = await loadGz("lifetime.f32.gz");
+    split(flat, META.lifetime_tensors);
+    lifeLoaded = true;
+    return true;
+  } catch(e) {
+    document.getElementById("life_loading").textContent="Failed to load Lifetime Cost data: "+e;
+    return false;
+  } finally { lifeLoading = false; document.getElementById("life_loading").style.display="none"; }
+}
+
+function markStale() {
+  if (!lifeCalc) return;
+  document.getElementById("life_content").classList.add("stale");
+  document.getElementById("stalemsg").style.display="block";
+}
+
+async function runLife() {
+  const btn=document.getElementById("calc"); btn.disabled=true;
+  const ok=await ensureLife();
+  if (!ok) { btn.disabled=false; return; }
+  const t0=performance.now();
+  document.getElementById("life_hint").style.display="none";
+  updateLife();
+  lifeCalc=true;
+  document.getElementById("life_content").classList.remove("stale");
+  document.getElementById("stalemsg").style.display="none";
+  document.getElementById("life_content").style.display="block";
+  document.getElementById("latency").textContent=`lifetime: ${(performance.now()-t0).toFixed(1)} ms (client-side)`;
+  btn.disabled=false;
+}
+
+function updateLife() {
+  const inp=currentInputs(); updateCaptions(inp);
+  const dd=Math.min(Math.max(+val("dd"),META.DD_values[0]),META.DD_values[META.DD_values.length-1]);
+  const cpy=Math.min(Math.max(+val("cpy"),META.CPY_values[0]),META.CPY_values[META.CPY_values.length-1]);
+  const names=["base_lcos","new_lcos","capex_base","capex_arctic","repl_base","repl_arctic",
+    "D_base","D_arctic","arctic_lcos_dlo","arctic_lcos_dhi"].concat(META.factors.map((_,i)=>"contrib_"+i));
+  const q=interp6D(names,inp.power,inp.cost,inp.rate,inp.life,dd,cpy);
+  const techs=META.techs, colors=META.colors, factors=META.factors;
+  const row=(t)=>{
+    const bl=q.base_lcos[t], al=q.new_lcos[t];
+    const feasible=Number.isFinite(bl)&&bl<SENTINEL&&Number.isFinite(al)&&al<SENTINEL;
+    const dlo=q.arctic_lcos_dlo[t], dhi=q.arctic_lcos_dhi[t];
+    const hasBand=Number.isFinite(dlo)&&Number.isFinite(dhi);
+    return {t, bl, al, feasible, hasBand,
+      alo: hasBand?al-dlo:al, ahi: hasBand?al+dhi:al,
+      capB:q.capex_base[t], capA:q.capex_arctic[t], Db:q.D_base[t], Da:q.D_arctic[t],
+      replB:q.repl_base[t], replA:q.repl_arctic[t]};
+  };
+  const rows=techs.map((_,t)=>row(t));
+  const feasT=rows.filter(r=>r.feasible).map(r=>r.t);
+  const xtech=feasT.map(t=>techs[t]);
+
+  // ---- cost table ----
+  const fmtL=v=>Number.isFinite(v)&&v<SENTINEL?`$${v.toFixed(3)}/kWh`:"—";
+  const fmtM=v=>Number.isFinite(v)?`$${(v/1e6).toFixed(1)} M`:"—";
+  const pct=v=>(v>=0?"+":"")+v.toFixed(1)+"%";
+  let html=`<table class="lc"><thead><tr><th>Technology</th><th>Temperate LCOS</th><th>Arctic LCOS</th>`
+    +`<th>LCOS Change</th><th>Temperate CAPEX</th><th>Arctic CAPEX</th></tr></thead><tbody>`;
+  rows.forEach((r,t)=>{
+    if (!r.feasible){ html+=`<tr><td style="color:${colors[t]};font-weight:600">${techs[t]}</td><td colspan=5 style="color:var(--muted)">n/a — cannot serve this application</td></tr>`; return; }
+    const chg=(r.al-r.bl)/r.bl*100;
+    const arcticCell = r.hasBand
+      ? `${fmtL(r.al)}<br><span class="rng">[${r.alo.toFixed(3)}–${r.ahi.toFixed(3)}]</span>`
+      : fmtL(r.al);
+    const chgCell = r.hasBand
+      ? `${pct(chg)}<br><span class="rng">[${pct((r.alo-r.bl)/r.bl*100)} … ${pct((r.ahi-r.bl)/r.bl*100)}]</span>`
+      : pct(chg);
+    html+=`<tr><td style="color:${colors[t]};font-weight:600">${techs[t]}</td>`
+      +`<td>${fmtL(r.bl)}</td><td>${arcticCell}</td><td>${chgCell}</td>`
+      +`<td>${fmtM(r.capB)}</td><td>${fmtM(r.capA)}</td></tr>`;
+  });
+  html+=`</tbody></table><div class="lcnote">Discharge duration ${dd.toPrecision(3)} h, ${Math.round(cpy)} charges/yr. `
+    +`Ranges = Arctic-LCOS uncertainty band (best- to worst-case Arctic parameters). "—" = cannot serve this application.</div>`;
+  document.getElementById("cost_table").innerHTML=html;
+
+  // ---- contribution chart with uncertainty whisker on the net-change marker ----
+  const contribTraces=factors.map((f,fi)=>({
+    x:xtech, y:feasT.map(t=>q["contrib_"+fi][t]), type:"bar", name:f,
+    marker:{color:FACTOR_COLORS[f]||"#999"}}));
+  const netY=feasT.map(t=>{const r=rows[t]; return (r.al-r.bl)/r.bl*100;});
+  const errPlus=feasT.map(t=>{const r=rows[t]; return r.hasBand?((r.ahi-r.bl)/r.bl*100)-((r.al-r.bl)/r.bl*100):0;});
+  const errMinus=feasT.map(t=>{const r=rows[t]; return r.hasBand?((r.al-r.bl)/r.bl*100)-((r.alo-r.bl)/r.bl*100):0;});
+  const netLine={x:xtech, y:netY, mode:"markers", type:"scatter", name:"net change ± uncertainty",
+    customdata:feasT.map((t,i)=>[errMinus[i], errPlus[i]]),
+    marker:{color:"#000",symbol:"line-ew-open",size:26,line:{width:2}},
+    error_y:{type:"data", symmetric:false, array:errPlus, arrayminus:errMinus,
+             color:"#000", thickness:1.4, width:6},
+    hovertemplate:"net: %{y:.1f}%<br>band: −%{customdata[0]:.1f} / +%{customdata[1]:.1f}%<extra></extra>"};
+  Plotly.react("contrib",[...contribTraces,netLine],{barmode:"relative",
+    title:{text:"Contribution to Arctic LCOS change (%-points; ▬ net, whisker = uncertainty)",font:{size:13}},
+    height:430,margin:{t:40,b:40,l:56,r:12},yaxis:{title:"%-points of temperate LCOS",zeroline:true},
+    legend:{font:{size:10}},paper_bgcolor:"#fff",plot_bgcolor:"#fff"},CONFIG);
+
+  // ---- breakdown chart (CAPEX/OPEX/Replacement $/kWh; temperate vs Arctic) ----
+  const cats=["CAPEX","OPEX","Replacement"];
+  const comp=(r,which)=>{
+    const D=which==="a"?r.Da:r.Db, cap=which==="a"?r.capA:r.capB, repl=which==="a"?r.replA:r.replB;
+    const lc=which==="a"?r.al:r.bl;
+    const capk=cap/D, replk=repl/D; return {CAPEX:capk, Replacement:replk, OPEX:lc-capk-replk};
+  };
+  const bd=[];
+  ["b","a"].forEach(which=>{
+    cats.forEach(cat=>{
+      bd.push({x:xtech, y:feasT.map(t=>comp(rows[t],which)[cat]), type:"bar", name:cat,
+        offsetgroup:which, legendgroup:cat, showlegend:which==="b",
+        marker:{color:BREAKDOWN_COLORS[cat], pattern:which==="a"?{shape:"/"}:{}}});
+    });
+  });
+  Plotly.react("breakdown",bd,{barmode:"relative",
+    title:{text:"Total LCOS breakdown — solid = Temperate, hatched = Arctic (USD/kWh)",font:{size:13}},
+    height:430,margin:{t:40,b:40,l:56,r:12},yaxis:{title:"LCOS (USD/kWh)"},
+    legend:{font:{size:11}},paper_bgcolor:"#fff",plot_bgcolor:"#fff"},CONFIG);
+}
+
+// ---- tabs ----
+let activeTab="land";
+function showTab(which) {
+  activeTab=which;
+  const land=which==="land";
+  document.getElementById("panel_land").style.display=land?"block":"none";
+  document.getElementById("panel_life").style.display=land?"none":"block";
+  document.getElementById("tab_land").classList.toggle("active",land);
+  document.getElementById("tab_life").classList.toggle("active",!land);
+}
+
+// ---- input wiring ----
+let queued=false;
 function onInput() {
-  if (queued) return;
-  queued = true;
-  requestAnimationFrame(() => { queued = false; update(); });
+  updateCaptions(currentInputs());
+  if (activeTab==="land") {
+    if (queued) return; queued=true;
+    requestAnimationFrame(()=>{ queued=false; update(); });
+  } else {
+    markStale();
+  }
 }
-["power","cost","rate","life"].forEach(id =>
-  document.getElementById(id).addEventListener("input", onInput));
+["power","cost","rate","life"].forEach(id=>document.getElementById(id).addEventListener("input",onInput));
+["dd","cpy"].forEach(id=>document.getElementById(id).addEventListener("input",markStale));
 
-load().catch(e => {
-  document.getElementById("loading").textContent = "Failed to load grid: " + e;
-});
+load().catch(e=>{ document.getElementById("loading").textContent="Failed to load grid: "+e; });
 </script>
 </body>
 </html>
